@@ -1,0 +1,146 @@
+---
+title: "Wine_data"
+author: "S/18/837"
+date: "2024-04-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(corrplot)
+library(ggplot2)
+library(lavaan)
+library(psych)
+library(data.table)
+library(factoextra)
+library(knitr)
+library(corrr)
+library(ggcorrplot)
+library(gridExtra)
+```
+# Load the dataset
+```{r}
+wine_data <- read.csv("../data/winequality-red.csv", sep = ";")
+head(wine_data)
+```
+```{r}
+view(wine_data)
+```
+#Standarize the data
+```{r}
+wine_data <- apply(wine_data,2, scale)
+```
+```{r}
+KMO(wine_data)
+```
+#Principle component analysis
+```{r}
+pca_results <- prcomp(wine_data[,C(1:11)], scale. = T)
+summary(pca_results)
+```
+```{r}
+eigenVal <- get_eigenvalue(pca_results)
+eigenVal
+```
+# Kaiser's Criterion
+```{r}
+num_factors <- sum(eigenVal$eigenvalue > 1)
+num_factors
+```
+#scree plot
+
+```{r}
+fviz_eig(pca_results,addlabels = TRUE)
+```
+```{r}
+fa.parallel(wine_data[,C(1:11)], fm="pa", fa ="fa")
+```
+# Graph of variables
+```{r}
+fviz_pca_var(pca_results,col.var = "red")
+```
+## Contribution of each variable
+```{r}
+fviz_cos2(pca_results,choice = "var",axes = 1:3)
+```
+## Factor Analysis For PC method
+
+H_0 : 5 factors are sufficient
+            vs
+H_1 : More factors needed
+```{r}
+fa_results_pc <- factanal(wine_data[,C(1:11)], factors = 5, method = "principal", rotation = "varimax")
+fa_results_pc
+```
+#factor loadings
+```{r}
+loadings_pc <- fa_results_pc$loadings
+loadings_pc
+```
+
+# Communality
+```{r}
+communalities_pc <- rowSums(loadings_pc^2)
+communalities_pc
+```
+## Factor Analysis For ML method
+
+H_0 : 5 factors are sufficient
+            vs
+H_1 : More factors needed
+
+```{r}
+fa_results_ml <- factanal(wine_data[,c(1:11)], factors = 5, method = "ml", rotation = "varimax")
+fa_results_ml
+```
+#factor loadings
+```{r}
+loadings_ml <- fa_results_ml$loadings
+loadings_ml
+```
+# Communality
+```{r}
+communalities_ml <- rowSums(loadings_ml^2)
+communalities_ml
+```
+---------------------------------------------------------------------------------------------------------------------------------------------
+##Confirmatory Factor Analysis (CFA) 
+```{r}
+cfa_model <- '
+    Factor1 =~ fixed.acidity +  pH
+    Factor2 =~ free.sulfur.dioxide + total.sulfur.dioxide
+    Factor3 =~ volatile.acidity + citric.acid + sulphates
+    Factor4 =~ chlorides + alcohol
+    Factor5 =~ residual.sugar + density
+    
+    fixed.acidity ~~ fixed.acidity
+    volatile.acidity ~~ volatile.acidity
+    citric.acid ~~ citric.acid
+    residual.sugar ~~ residual.sugar
+    chlorides ~~ chlorides
+    free.sulfur.dioxide ~~ free.sulfur.dioxide
+    total.sulfur.dioxide ~~ total.sulfur.dioxide
+    density ~~ density
+    pH ~~ pH
+    sulphates ~~ sulphates
+    alcohol ~~ alcohol
+'
+```
+
+#Fit the CFA model
+```{r}
+cfa_fit <- sem(cfa_model, data = wine_data[,c(1:11)])
+```
+
+
+# Summarize the model fit
+```{r}
+summary(cfa_fit, fit.measures = TRUE)
+```
+
+
+
